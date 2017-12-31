@@ -3,6 +3,7 @@ import time
 import sys
 import heapq
 import curses
+from search_agent import searchAgent
 
 class bcolors:
     HEADER = '\033[95m'
@@ -13,19 +14,6 @@ class bcolors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
-
-class PriorityQueue:
-    def __init__(self):
-        self.elements = []
-
-    def empty(self):
-        return len(self.elements) == 0
-    def put(self, item, priority):
-        heapq.heappush(self.elements, (priority, item))
-
-    def get(self):
-        return heapq.heappop(self.elements)[1]
-
 
 class Maze(object):
     def __init__(self, filename, costs = {'m': 3, 'p' : 2, '-' : 1, '#' : 100, 'b' : 10, '*' : 15}):
@@ -42,8 +30,9 @@ class Maze(object):
         self.printBoard(maze)
         self.convertToGraph(maze)
         start,goal = self.findGoalAndStart()
-        self.a_star(start,goal)
-        #self.printScreen()
+        came_from, cost_so_far = searchAgent(self.graph,self.nodes,self.costs,start,goal,'simple').a_star()
+        self.path = self.reconstruct_path(came_from,start,goal)
+        self.printPath(self.path,'$')
         self.updateScreen()
 
     def readFile(self):
@@ -58,7 +47,7 @@ class Maze(object):
     def findGoalAndStart(self):
         start = None
         goal = None
-	for n in self.nodes:
+        for n in self.nodes:
             if self.nodes[n] == 'm':
                 start = n
             if self.nodes[n] == 'p':
@@ -82,34 +71,6 @@ class Maze(object):
     def cost(self, a, b):
         return self.costs[self.nodes[a]] + self.costs[self.nodes[b]]
 
-    def heuristic(self,a,b):
-        (x1, y1) = a
-        (x2, y2) = b
-        return abs(x1 - x2) + abs(y1 - y2)
-
-    def a_star(self, start, goal):
-        frontier = PriorityQueue()
-        frontier.put(start, 0)
-        came_from = {}
-        cost_so_far = {}
-        came_from[start] = None
-        cost_so_far[start] = 0
-        while not frontier.empty():
-            current = frontier.get()
-            if current == goal:
-                break
-            neighbors  = self.graph[current]
-            for neighbor in neighbors:
-                new_cost = cost_so_far[current] + self.cost(current,neighbor)
-                if neighbor not in cost_so_far or new_cost  < cost_so_far[neighbor]:
-                    cost_so_far[neighbor] = new_cost
-                    priority = new_cost + self.heuristic(neighbor,goal)
-                    frontier.put(neighbor,priority)
-                    came_from[neighbor] = current
-
-
-        self.path = self.reconstruct_path(came_from,start,goal)
-        self.printPath(self.path,'$')
 
     def reconstruct_path(self,came_from, start, goal):
         current = goal
@@ -134,7 +95,6 @@ class Maze(object):
             if count == self.width:
                 print ''
                 count = 0
-
 
     def findNeighbors(self,tile):
         x,y = (tile)
@@ -178,6 +138,7 @@ class Maze(object):
         for p in self.path:
             self.printScreen(p)
         curses.endwin()
+
 
 if __name__ == "__main__":
     #Maze('maze_complex.txt')
